@@ -1,5 +1,7 @@
 {
-  "name": "cat",
+  "name": "plummet",
   "version": "0.0.1",
-  "bundleDependencies": ["catdb", "routes"]
+  "dependencies": {
+    "routes": "0.1.1"
+  }
 }
