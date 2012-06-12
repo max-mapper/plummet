@@ -1,4 +1,4 @@
-var catdb = require('catdb')
+var plumbdb = require('plumbdb')
 var http = require('http')
 var url = require('url')
 var qs = require('querystring')
@@ -7,9 +7,9 @@ var Router = routes.Router
 var Route = routes.Route
 var router = new Router()
 
-function Cat(name, cb) {
+function Plumb(name, cb) {
   var me = this
-  me.catdb = catdb(name, function(err, db) {
+  me.plumbdb = plumbdb(name, function(err, db) {
     cb(err, me.createServer())
   })
   router.addRoute("/", this.hello)
@@ -19,20 +19,20 @@ function Cat(name, cb) {
   router.addRoute("/:id", this.document)
 }
 
-Cat.prototype.createServer = function() {
+Plumb.prototype.createServer = function() {
   var me = this
   return http.createServer(function(req, res) {
     me.handler.call(me, req, res)
   })
 }
 
-Cat.prototype.handler = function(req, res) {
+Plumb.prototype.handler = function(req, res) {
   req.route = router.match(req.url)
   if (!req.route) return this.error(res, 404)
   req.route.fn.call(this, req, res)
 }
 
-Cat.prototype.changes = function(req, res) {
+Plumb.prototype.changes = function(req, res) {
   var me = this
   res.setHeader('content-type', 'application/json')
   var parsedURL = url.parse(req.url)
@@ -44,9 +44,9 @@ Cat.prototype.changes = function(req, res) {
   })
 }
 
-Cat.prototype._sendChanges = function(start, end, res) {
+Plumb.prototype._sendChanges = function(start, end, res) {
   var me = this
-  this.catdb.db.iterator(function(err, iterator) {
+  this.plumbdb.db.iterator(function(err, iterator) {
     if (err) return me.error(res, 500, err)
     var pre = '{"rows": [', sep = "", post = ']}'
     res.write(pre)
@@ -60,8 +60,8 @@ Cat.prototype._sendChanges = function(start, end, res) {
 }
 
 // hack until node-leveldb gets streams
-Cat.prototype._getLast = function(cb) {
-  this.catdb.db.iterator(function(err, iterator) {
+Plumb.prototype._getLast = function(cb) {
+  this.plumbdb.db.iterator(function(err, iterator) {
     if (err) return cb(err)
     iterator.last(function(err) {
       if (err) return cb(err)
@@ -72,37 +72,46 @@ Cat.prototype._getLast = function(cb) {
   })
 }
 
-Cat.prototype.error = function(res, status, message) {
+Plumb.prototype.error = function(res, status, message) {
   res.statusCode = status || 500
   var json = {error: res.statusCode, message: message}
   this.json(res, json)
 }
 
-Cat.prototype.hello = function(req, res) {
+Plumb.prototype.hello = function(req, res) {
   if (req.method === "POST") return this.document(req, res)
-  this.json(res, {"cat": "Welcome", "version": 1})
+  this.json(res, {"plumb": "Welcome", "version": 1})
 }
 
-Cat.prototype.json = function(res, json) {
+Plumb.prototype.json = function(res, json) {
   res.setHeader('content-type', 'application/json')
   res.end(JSON.stringify(json))
 }
 
-Cat.prototype.document = function(req, res) {
+Plumb.prototype.get = function(req, res) {
   var me = this
-  if (req.method === "GET") return this.catdb.get(req.route.params.id, function(err, json) {
+  this.plumbdb.get(req.route.params.id, function(err, json) {
     if (err) return me.error(res, 500)
     if (json === null) return me.error(res, 404)
     me.json(res, json)
   })
-  if (req.method === "POST") return this.catdb.put(req, function(err, json) {
+}
+
+Plumb.prototype.post = function(req, res) {
+  var me = this
+  this.plumbdb.put(req, function(err, json) {
     if (err) return me.error(res, 500)
     me.json(res, json)
   })
-  
 }
 
-var cat = new Cat('test', function(err, server) {
+Plumb.prototype.document = function(req, res) {
+  var me = this
+  if (req.method === "GET") return this.get(req, res)
+  if (req.method === "POST") return this.post(req, res)
+}
+
+var plumb = new Plumb('test', function(err, server) {
   server.listen(8000)
   console.log('8000')
 })
