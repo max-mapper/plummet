@@ -34,22 +34,27 @@ Cat.prototype.handler = function(req, res) {
 
 Cat.prototype.changes = function(req, res) {
   var me = this
+  res.setHeader('content-type', 'application/json')
+  var parsedURL = url.parse(req.url)
+  if (parsedURL.query) query = qs.parse(parsedURL.query)
+  else query = {since: "0"}
+  me._getLast(function(err, last) {
+    if (err) return me.error(res, 500, err)
+    me._sendChanges(query.since, last, res)
+  })
+}
+
+Cat.prototype._sendChanges = function(start, end, res) {
+  var me = this
   this.catdb.db.iterator(function(err, iterator) {
     if (err) return me.error(res, 500, err)
-    res.setHeader('content-type', 'application/json')
-    var parsedURL = url.parse(req.url)
-    if (parsedURL.query) query = qs.parse(parsedURL.query)
-    else query = {since: "0"}
     var pre = '{"rows": [', sep = "", post = ']}'
     res.write(pre)
-    me._getLast(function(err, last) {
-      if (err) return me.error(res, 500, err)
-      iterator.forRange(query.since, last, function(err, key, val) {
-        if (key === last) return res.end(post)
-        if (key === query.since) return
-        res.write(sep + val)
-        sep = ","
-      })
+    iterator.forRange(start, end, function(err, key, val) {
+      if (key === end) return res.end(post)
+      if (key === start) return
+      res.write(sep + val)
+      sep = ","
     })
   })
 }
