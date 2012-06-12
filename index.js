@@ -9,15 +9,22 @@ function Plummet(name, cb) {
   this.plumbdb = plumbdb(name, function(err, db) {
     cb(err, me.createServer())
   })
-  this.router = new routes.Router()
   this.createRoutes()
 }
 
+module.exports = function(name, cb) {
+  return new Plummet(name, cb)
+}
+
+module.exports.Plummet = Plummet
+
 Plummet.prototype.createRoutes = function() {
+  this.router = new routes.Router()
   this.router.addRoute("/", this.hello)
   this.router.addRoute("/favicon.ico", this.hello)
   this.router.addRoute("/_changes*", this.changes)
   this.router.addRoute("/_changes", this.changes)
+  this.router.addRoute("/_bulk", this.bulk)
   this.router.addRoute("/:id", this.document)
 }
 
@@ -107,13 +114,24 @@ Plummet.prototype.post = function(req, res) {
   })
 }
 
+Plummet.prototype.bulk = function(req, res) {
+  var me = this
+  this.plumbdb.bulk(req, function(err, results) {
+    if (err) return me.error(res, 500, err)
+    me.json(res, results)
+  })
+}
+
+Plummet.prototype.replicate = function(req, res) {
+  var me = this
+  this.plumbdb.put(req, function(err, json) {
+    if (err) return me.error(res, 500)
+    me.json(res, json)
+  })
+}
+
 Plummet.prototype.document = function(req, res) {
   var me = this
   if (req.method === "GET") return this.get(req, res)
   if (req.method === "POST") return this.post(req, res)
 }
-
-var plummet = new Plummet('test', function(err, server) {
-  server.listen(8000)
-  console.log('8000')
-})
