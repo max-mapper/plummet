@@ -49,6 +49,7 @@ Plummet.prototype.changes = function(req, res) {
   else query = {since: "0"}
   me._getLast(function(err, last) {
     if (err) return me.error(res, 500, err)
+    if (!last) last = query.since
     me._sendChanges(query.since, last, res)
   })
 }
@@ -59,11 +60,12 @@ Plummet.prototype._sendChanges = function(start, end, res) {
     if (err) return me.error(res, 500, err)
     var pre = '{"rows": [', sep = "", post = ']}'
     res.write(pre)
+    if (start === end) return res.end(post)
     iterator.forRange(start, end, function(err, key, val) {
-      if (key === end) return res.end(post)
       if (key === start) return
       res.write(sep + val)
       sep = ","
+      if (key === end) return res.end(post)
     })
   })
 }
@@ -122,13 +124,13 @@ Plummet.prototype.bulk = function(req, res) {
   })
 }
 
-Plummet.prototype.replicate = function(req, res) {
-  var me = this
-  this.plumbdb.put(req, function(err, json) {
-    if (err) return me.error(res, 500)
-    me.json(res, json)
-  })
-}
+// Plummet.prototype.replicate = function(req, res) {
+//   var me = this
+//   this.plumbdb.put(req, function(err, json) {
+//     if (err) return me.error(res, 500)
+//     me.json(res, json)
+//   })
+// }
 
 Plummet.prototype.document = function(req, res) {
   var me = this
