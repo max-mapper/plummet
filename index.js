@@ -3,6 +3,7 @@ var http = require('http')
 var url = require('url')
 var qs = require('querystring')
 var routes = require('routes')
+var request = require('request').defaults({json: true})
 
 function Plummet(name, cb) {
   var me = this
@@ -24,6 +25,8 @@ Plummet.prototype.createRoutes = function() {
   this.router.addRoute("/favicon.ico", this.hello)
   this.router.addRoute("/_changes*", this.changes)
   this.router.addRoute("/_changes", this.changes)
+  this.router.addRoute("/_push", this.push)
+  // this.router.addRoute("/_pull", this.pull)
   this.router.addRoute("/_bulk", this.bulk)
   this.router.addRoute("/:id", this.document)
 }
@@ -47,7 +50,7 @@ Plummet.prototype.changes = function(req, res) {
   var parsedURL = url.parse(req.url)
   if (parsedURL.query) query = qs.parse(parsedURL.query)
   else query = {since: "0"}
-  me._getLast(function(err, last) {
+  me.plumbdb._getLast(function(err, last) {
     if (err) return me.error(res, 500, err)
     if (!last) last = query.since
     me._sendChanges(query.since, last, res)
@@ -70,23 +73,15 @@ Plummet.prototype._sendChanges = function(start, end, res) {
   })
 }
 
-// hack until node-leveldb gets streams
-Plummet.prototype._getLast = function(cb) {
-  this.plumbdb.db.iterator(function(err, iterator) {
-    if (err) return cb(err)
-    iterator.last(function(err) {
-      if (err) return cb(err)
-      iterator.current(function(err, key, val) {
-        cb(err, key)
-      })
-    })
-  })
-}
-
 Plummet.prototype.error = function(res, status, message) {
+  if (!status) status = res.statusCode
+  if (message) {
+    if (message.status) status = message.status
+    if (typeof message === "object") message.status = status
+    if (typeof message === "string") message = {error: status, message: message}
+  }
   res.statusCode = status || 500
-  var json = {error: res.statusCode, message: message}
-  this.json(res, json)
+  this.json(res, message)
 }
 
 Plummet.prototype.hello = function(req, res) {
@@ -124,13 +119,53 @@ Plummet.prototype.bulk = function(req, res) {
   })
 }
 
-// Plummet.prototype.replicate = function(req, res) {
-//   var me = this
-//   this.plumbdb.put(req, function(err, json) {
-//     if (err) return me.error(res, 500)
-//     me.json(res, json)
-//   })
-// }
+Plummet.prototype._requestBody = function(req, cb) {
+  var buffers = [], error = false
+  req.on('data', function (chunk) {
+    buffers.push(chunk)
+  })
+  req.on('end', function (chunk) {
+    if (chunk) buffers.push(chunk)
+    if (error) return
+    var body = buffers.join('')
+    return cb(false, body)
+  })
+  req.on('error', function (err) {
+    error = true
+    cb(err)
+  })
+}
+
+Plummet.prototype._requestJSON = function(req, cb) {
+  this._requestBody(req, function(err, body) {
+    if (err) return cb(err)
+    if (req.headers['content-type'].split(';')[0] === 'application/json') {
+      try {
+        return cb(false, JSON.parse(body))
+      } catch (e) {
+        return cb(e)
+      }
+    }
+    return cb({"status": 415, "error":"bad_content_type", "reason":"content-type must be application/json"})
+  })
+}
+
+Plummet.prototype.push = function(req, res) {
+  var me = this
+  this._requestJSON(req, function(err, json) {
+    if (err) return me.error(res, err.status, err)
+    if (!json.target) return me.error(res, 400, "you must specify a replication target")
+    var target = url.parse(json.target)
+    if (!target.protocol || !target.protocol.match(/http/)) return me.error(res, 400, "bad target URL")
+    me.plumbdb._getLast(function(err, last) {
+      if (err) return me.error(res, 500, err)
+      request(url.format(target) + '_changes?since=' + last, function(err, resp, json) {
+        if (err) return me.error(res, 500, err)
+        me.json(res, json)
+      })
+    })
+  })
+}
 
 Plummet.prototype.document = function(req, res) {
   var me = this
