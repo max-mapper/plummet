@@ -25,8 +25,8 @@ Plummet.prototype.createRoutes = function() {
   this.router.addRoute("/favicon.ico", this.hello)
   this.router.addRoute("/_changes*", this.changes)
   this.router.addRoute("/_changes", this.changes)
-  this.router.addRoute("/_push", this.push)
-  // this.router.addRoute("/_pull", this.pull)
+  // this.router.addRoute("/_push", this.push)
+  this.router.addRoute("/_pull", this.pull)
   this.router.addRoute("/_bulk", this.bulk)
   this.router.addRoute("/:id", this.document)
 }
@@ -39,6 +39,7 @@ Plummet.prototype.createServer = function() {
 }
 
 Plummet.prototype.handler = function(req, res) {
+  console.log(req.method, req.url)
   req.route = this.router.match(req.url)
   if (!req.route) return this.error(res, 404)
   req.route.fn.call(this, req, res)
@@ -61,7 +62,7 @@ Plummet.prototype._sendChanges = function(start, end, res) {
   var me = this
   this.plumbdb.db.iterator(function(err, iterator) {
     if (err) return me.error(res, 500, err)
-    var pre = '{"rows": [', sep = "", post = ']}'
+    var pre = '{"docs": [', sep = "", post = ']}'
     res.write(pre)
     if (start === end) return res.end(post)
     iterator.forRange(start, end, function(err, key, val) {
@@ -115,7 +116,7 @@ Plummet.prototype.bulk = function(req, res) {
   var me = this
   this.plumbdb.bulk(req, function(err, results) {
     if (err) return me.error(res, 500, err)
-    me.json(res, results)
+    me.json(res, {"results": results})
   })
 }
 
@@ -150,19 +151,19 @@ Plummet.prototype._requestJSON = function(req, cb) {
   })
 }
 
-Plummet.prototype.push = function(req, res) {
+Plummet.prototype.pull = function(req, res) {
   var me = this
   this._requestJSON(req, function(err, json) {
     if (err) return me.error(res, err.status, err)
-    if (!json.target) return me.error(res, 400, "you must specify a replication target")
-    var target = url.parse(json.target)
-    if (!target.protocol || !target.protocol.match(/http/)) return me.error(res, 400, "bad target URL")
+    if (!json.source) return me.error(res, 400, "you must specify a replication source")
+    var source = url.parse(json.source)
+    if (!source.protocol || !source.protocol.match(/http/)) return me.error(res, 400, "bad source URL")
     me.plumbdb._getLast(function(err, last) {
       if (err) return me.error(res, 500, err)
-      request(url.format(target) + '_changes?since=' + last, function(err, resp, json) {
-        if (err) return me.error(res, 500, err)
-        me.json(res, json)
-      })
+      var remoteChanges = url.format(source) + '_changes'
+      if (last) remoteChanges += '?since=' + last
+      var changes = request(remoteChanges)
+      me.bulk(changes, res)
     })
   })
 }
