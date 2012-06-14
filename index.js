@@ -65,6 +65,7 @@ Plummet.prototype._sendChanges = function(start, end, res) {
     var pre = '{"docs": [', sep = "", post = ']}'
     res.write(pre)
     if (start === end) return res.end(post)
+    start = me.plumbdb.prefix + start
     iterator.forRange(start, end, function(err, key, val) {
       if (key === start) return
       res.write(sep + val)
