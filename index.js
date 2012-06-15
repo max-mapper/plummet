@@ -22,13 +22,14 @@ module.exports.Plummet = Plummet
 Plummet.prototype.createRoutes = function() {
   this.router = new routes.Router()
   this.router.addRoute("/", this.hello)
-  this.router.addRoute("/favicon.ico", this.hello)
   this.router.addRoute("/_changes*", this.changes)
   this.router.addRoute("/_changes", this.changes)
   // this.router.addRoute("/_push", this.push)
   this.router.addRoute("/_pull", this.pull)
   this.router.addRoute("/_bulk", this.bulk)
   this.router.addRoute("/:id", this.document)
+  this.router.addRoute("*", this.notFound)
+  
 }
 
 Plummet.prototype.createServer = function() {
@@ -60,12 +61,13 @@ Plummet.prototype.changes = function(req, res) {
 
 Plummet.prototype._sendChanges = function(start, end, res) {
   var me = this
+  // todo move to plumbdb
   this.plumbdb.db.iterator(function(err, iterator) {
     if (err) return me.error(res, 500, err)
     var pre = '{"docs": [', sep = "", post = ']}'
     res.write(pre)
     if (start === end) return res.end(post)
-    start = me.plumbdb.prefix + start
+    start = me.plumbdb.changesPrefix + start
     iterator.forRange(start, end, function(err, key, val) {
       if (key === start) return
       res.write(sep + val)
@@ -86,6 +88,10 @@ Plummet.prototype.error = function(res, status, message) {
   this.json(res, message)
 }
 
+Plummet.prototype.notFound = function(req, res) {
+  this.error(res, 404, {"error": "Not Found"})
+}
+
 Plummet.prototype.hello = function(req, res) {
   if (req.method === "POST") return this.document(req, res)
   this.json(res, {"plummet": "Welcome", "version": 1})
@@ -100,7 +106,7 @@ Plummet.prototype.get = function(req, res) {
   var me = this
   this.plumbdb.get(req.route.params.id, function(err, json) {
     if (err) return me.error(res, 500)
-    if (json === null) return me.error(res, 404)
+    if (json === null) return me.error(res, 404, {error: "Not Found"})
     me.json(res, json)
   })
 }
