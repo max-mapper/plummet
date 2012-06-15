@@ -66,8 +66,8 @@ Plummet.prototype._sendChanges = function(start, end, res) {
     if (err) return me.error(res, 500, err)
     var pre = '{"docs": [', sep = "", post = ']}'
     res.write(pre)
+    start = me.plumbdb.stampPrefix + start
     if (start === end) return res.end(post)
-    start = me.plumbdb.changesPrefix + start
     iterator.forRange(start, end, function(err, key, val) {
       if (key === start) return
       res.write(sep + val)
@@ -93,6 +93,7 @@ Plummet.prototype.notFound = function(req, res) {
 }
 
 Plummet.prototype.hello = function(req, res) {
+  // this.plumbdb._dumpAll()
   if (req.method === "POST") return this.document(req, res)
   this.json(res, {"plummet": "Welcome", "version": 1})
 }

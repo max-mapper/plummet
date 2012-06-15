@@ -1,4 +1,4 @@
-a http + json api for leveldb that syncs
+streaming + syncing http + json api for [PlumbDB](https://github.com/maxogden/plumbdb) (which is built on leveldb)
 
 
     var plummet = new Plummet('test', function(err, server) {
@@ -12,4 +12,5 @@ a http + json api for leveldb that syncs
     curl http://localhost:8000/_changes
     curl http://localhost:8000/_changes?since=1339537769596014
     curl http://localhost:8000/1339537769596014
+    curl -X POST http://localhost:8000/_pull -d '{"source":"http://remoteplummet"}' -H 'content-type: application/json'
     
