@@ -108,7 +108,10 @@ Plummet.prototype.get = function(req, res) {
 Plummet.prototype.post = function(req, res) {
   var me = this
   this.plumbdb.put(req, function(err, json) {
-    if (err) return me.error(res, 500)
+    if (err) {
+      if (err.conflict) return me.error(res, 409, {error: "Document update conflict. Invalid _rev"})
+      else return me.error(res, 500, err)
+    }
     me.json(res, json)
   })
 }
