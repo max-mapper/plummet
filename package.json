@@ -1,7 +1,18 @@
-{
+{ 
   "name": "plummet",
-  "version": "0.0.1",
+  "description": "streaming and syncing http and json api for PlumbDB (built on LevelDB)",
   "dependencies": {
     "routes": "0.1.1"
-  }
+  },
+  "tags": ["server", "database", "leveldb", "api"],
+  "version": "0.0.1",
+  "author": "Max Ogden <max@maxogden.com>",
+  "repository": {
+    "type": "git",
+    "url": "http://github.com/maxogden/plummet.git"
+  },
+  "bugs": {
+    "url": "http://github.com/maxogden/plummet/issues"
+  },
+  "engines": ["node >= 0.6.x"]
 }

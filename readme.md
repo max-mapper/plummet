@@ -1,7 +1,10 @@
 streaming + syncing http + json api for [PlumbDB](https://github.com/maxogden/plumbdb) (which is built on leveldb)
 
+    npm install plummet
 
-    var plummet = new Plummet('test', function(err, server) {
+    var plummet = require('plummet')
+    
+    plummet('test', function(err, server) {
       server.listen(8000)
       console.log('plummeting on 8000')
     })
