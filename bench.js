@@ -4,7 +4,7 @@
 var request = require('request')
   , _ = require('underscore')
 
-var db = process.argv[2]
+var db = process.argv[2] || "http://localhost:8000"
   , h = {"Content-type": "application/json", "Accept": "application/json"}
   , docs = []
   , size = process.argv[3] || 10000
