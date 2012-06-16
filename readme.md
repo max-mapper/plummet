@@ -2,6 +2,7 @@ streaming + syncing http + json api for [PlumbDB](https://github.com/maxogden/pl
 
     npm install plummet
 
+
     var plummet = require('plummet')
     
     plummet('test', function(err, server) {
