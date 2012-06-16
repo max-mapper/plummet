@@ -66,6 +66,28 @@ var tests = {
       cb(error)
     })
   }),
+  emptyChanges: assert(function(server, cb) {
+    request(testserver + '_changes', function(err, resp, json) {
+      cb(json.docs.length !== 0)
+    })
+  }),
+  changes: assert(function(server, cb) {
+    request.post({url: testserver, json: {"hello": "world"}}, function(err, resp, json) {
+      request(testserver + '_changes', function(err, resp, json) {
+        cb(json.docs.length !== 1)
+      })
+    })
+  }),
+  changesDuplicates: assert(function(server, cb) {
+    request.post({url: testserver, json: {"hello": "world"}}, function(err, resp, json) {
+      json.foo = "bar"
+      request.post({url: testserver, json: json}, function(err, resp, edited) {
+        request(testserver + '_changes', function(err, resp, json) {
+          cb(json.docs.length !== 1 || JSON.stringify(json.docs[0]) !== JSON.stringify(edited))
+        })
+      })
+    })
+  }),
   replicate: assert(function(server, cb) {
     var docs = []
     _.times(1000, function() { docs.push({"pizza":"cats"}) })
